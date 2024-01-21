@@ -1,0 +1,23 @@
+---
+title: "Lab 1"
+author: "Adeline Casali"
+date: "2024-01-21"
+output: word_document
+---
+
+# Question 1
+The main difference between supervised and unsupervised learning is that with supervised learning there are labels associated with the observations, while with unsupervised learning there are no labels. The learning performed in the First Keras Example was supervised learning. This is because the mpg was provided and then predicted using features such as the number of cylinders, displacement, and horsepower. The data used for training included both input and output features, making it a supervised learning process. 
+
+# Question 2
+```{r}
+# Confirming installation
+library(tensorflow)
+tf$constant("Hello Tensorflow!")
+```
+
+
+# Question 3
+Machine learning is a specific subfield of artificial intelligence that is focused on enabling computers to learn from data in order to make decisions or predictions. The two main approaches within the field are supervised and unsupervised learning, differentiated on whether or not the observations contain labels or not. Deep learning is another field within machine learning that specifically focuses on neural networks with multiple layers, each contributing to the model of the data. It is particularly good at extracting features from raw data. Machine learning is a broader field that relies on traditional models, while deep learning utilizes complex neural networks and often requires larger datasets and increased computational power. 
+
+# Question 4
+In a neural network, the input layer serves as a conduit where raw data is fed into the network. From there, the data is passed to hidden layers which perform transformations on the data to capture intricate patterns. Finally, the output layer performs another transformation to produce final predictions. Loss functions are utilized in training neural networks because they measure the quality of the network's output. This function is used as a feedback signal to adjust the weights and guides the optimization process to minimize the loss score, and therefore create a more accurate, trained, network. 
