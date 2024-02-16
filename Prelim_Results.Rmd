@@ -1,5 +1,12 @@
-# Data Preprocessing ------------------------------------------------------
+---
+title: "Preliminary Results"
+author: "Adeline Casali"
+date: "2024-02-15"
+output: word_document
+---
 
+# Data Preprocessing
+```{r}
 # Loading Data
 data <- read.csv("project_data.csv")
 
@@ -142,8 +149,11 @@ test_labels <- array(data = unlist(test_set[, 15]),
 # Remove unnecessary columns from training and test sets for use in linear models
 training_set <- training_set[ , -c(5, 7, 9, 16, 18, 19, 21)]
 test_set <- test_set[ , -c(5, 7, 9, 16, 18, 19, 21)]
+```
 
-# Building and evaluating models ------------------------------------------
+
+# Building and evaluating models
+```{r}
 # Building and evaluating a logistic regression model
 # Model with all predictors
 lm <- glm(booking_status ~ ., data = training_set, family = binomial)
@@ -347,25 +357,5 @@ classification_table <- kable(classification_overview, "markdown") %>%
   kable_styling(full_width = FALSE) %>%
   column_spec(1, bold = TRUE)
 classification_table
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+```
 
