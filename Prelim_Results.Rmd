@@ -167,7 +167,7 @@ results <- data.frame(
 results$Correct <- results$Actual == results$Predicted
 confusion_matrix_lm <- table(Predicted = results$Predicted, Actual = results$Actual)
 print(confusion_matrix_lm)
-accuracy_lm <- (5714 + 1568) / (5714 + 1395 + 382 + 1568)
+accuracy_lm <- (5691 + 1514) / (5714 + 1395 + 382 + 1568)
 error_lm <- 1 - accuracy_lm
 cat("Accuracy:", accuracy_lm, "\n")
 cat("Error Rate:", error_lm, "\n")
@@ -185,7 +185,7 @@ results_sig <- data.frame(
 results_sig$Correct <- results_sig$Actual == results_sig$Predicted
 confusion_matrix_sig_lm <- table(Predicted = results_sig$Predicted, Actual = results_sig$Actual)
 print(confusion_matrix_sig_lm)
-accuracy_sig_lm <- (5712 + 1568) / (5712 + 1395 + 384 + 1568)
+accuracy_sig_lm <- (5695 + 1518) / (5712 + 1395 + 384 + 1568)
 error_sig_lm <- 1 - accuracy_sig_lm
 cat("Accuracy:", accuracy_sig_lm, "\n")
 cat("Error Rate:", error_sig_lm, "\n")
@@ -209,7 +209,7 @@ knn_results <- data.frame(
 knn_results$Correct <- knn_results$Actual == knn_results$Predicted
 knn_confusion_matrix <- table(Predicted = knn_results$Predicted, Actual = knn_results$Actual)
 print(knn_confusion_matrix)
-accuracy_knn <- (5519 + 2114) / (5519 + 849 + 577 + 2114)
+accuracy_knn <- (5520 + 2140) / (5519 + 849 + 577 + 2114)
 error_knn <- 1 - accuracy_knn
 cat("Accuracy:", accuracy_knn, "\n")
 cat("Error Rate:", error_knn, "\n")
@@ -230,7 +230,7 @@ knn_results <- data.frame(
 knn_results$Correct <- knn_results$Actual == knn_results$Predicted
 knn_confusion_matrix <- table(Predicted = knn_results$Predicted, Actual = knn_results$Actual)
 print(knn_confusion_matrix)
-accuracy_knn <- (5541 + 2087) / (5541 + 876 + 555 + 2087)
+accuracy_knn <- (5539 + 2072) / (5541 + 876 + 555 + 2087)
 error_knn <- 1 - accuracy_knn
 cat("Accuracy:", accuracy_knn, "\n")
 cat("Error Rate:", error_knn, "\n")
@@ -251,7 +251,7 @@ knn_results <- data.frame(
 knn_results$Correct <- knn_results$Actual == knn_results$Predicted
 knn_confusion_matrix <- table(Predicted = knn_results$Predicted, Actual = knn_results$Actual)
 print(knn_confusion_matrix)
-accuracy_knn <- (5629 + 2001) / (5629 + 962 + 467 + 2001)
+accuracy_knn <- (5616 + 2016) / (5629 + 962 + 467 + 2001)
 error_knn <- 1 - accuracy_knn
 cat("Accuracy:", accuracy_knn, "\n")
 cat("Error Rate:", error_knn, "\n")
@@ -271,7 +271,7 @@ test_set$booking_status <- factor(test_set$booking_status)
 levels(rf_predictions) <- levels(test_set$booking_status)
 confusion_mat <- confusionMatrix(rf_predictions, test_set$booking_status)
 print(confusion_mat)
-accuracy_tree_rf <- (5893 + 2112) / (5893 + 804 + 250 + 2112)
+accuracy_tree_rf <- (5800 + 2186) / (5893 + 804 + 250 + 2112)
 error_tree_rf <- 1 - accuracy_tree_rf
 cat("Accuracy:", accuracy_tree_rf, "\n")
 cat("Error Rate:", error_tree_rf, "\n")
@@ -351,7 +351,7 @@ ggplot(data = calibration_data, aes(x = bin_midpoint, y = observed_event_percent
 # Table with models and relative accuracies
 classification_overview <- data.frame(
   Method = c("Logistic Regression", "kNN (k = 3)", "Random Forest", "Neural Network"),
-  Accuracy = c("80.38%", "84.26%", "88.37%", "80.52%")
+  Accuracy = c("79.53%", "84.56%", "88.16%", "79.92%")
 )
 classification_table <- kable(classification_overview, "markdown") %>%
   kable_styling(full_width = FALSE) %>%
