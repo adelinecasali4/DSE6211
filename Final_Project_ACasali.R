@@ -1,0 +1,603 @@
+# Data Preprocessing ------------------------------------------------------
+
+# Loading Data
+data <- read.csv("project_data.csv")
+
+# Loading packages
+library(dplyr)
+library(caret)
+library(lubridate)
+library(kableExtra)
+library(class)
+library(tree)
+library(randomForest)
+library(reticulate)
+library(tensorflow)
+library(keras)
+library(MESS)
+
+
+# Explore the dataset
+na_rows <- data[apply(is.na(data), 1, any), ]
+print(na_rows)
+unique(data$booking_status)
+
+# Remove unnecessary columns (Booking_ID)
+data <- data[ , -1]
+
+# Convert booking_status to 0 and 1
+data$booking_status <- ifelse(data$booking_status == "not_canceled", 0, 1)
+
+# Calculate booking_date based on arrival_date and lead_time
+data$arrival_date <- as.Date(data$arrival_date)
+data <- data %>%
+  mutate(booking_date = arrival_date - lead_time)
+
+# Extract day of week, day of month, and month from arrival_date and booking_date
+data <- data %>%
+  mutate(
+    arrival_day_of_week = wday(arrival_date, label = TRUE), 
+    arrival_day_of_month = day(arrival_date), 
+    arrival_month = month(arrival_date, label = TRUE))
+data <- data %>%
+  mutate(
+    booking_day_of_week = wday(booking_date, label = TRUE), 
+    booking_day_of_month = day(booking_date), 
+    booking_month = month(booking_date, label = TRUE))
+data <- data %>%
+  select(-c(arrival_date, booking_date))
+
+# Create testing and training sets
+training_ind <- createDataPartition(data$booking_status, 
+                                    p = 0.75, 
+                                    list = FALSE, 
+                                    times = 1)
+training_set <- data[training_ind, ]
+test_set <- data[-training_ind, ]
+
+# Assessing, grouping, and factoring categorical variables
+training_set$booking_day_of_week <- as.character(training_set$booking_day_of_week)
+training_set$booking_month <- as.character(training_set$booking_month)
+training_set$arrival_day_of_week <- as.character(training_set$arrival_day_of_week)
+training_set$arrival_month <- as.character(training_set$arrival_month)
+
+unique(training_set$type_of_meal_plan)
+unique(training_set$room_type_reserved)
+unique(training_set$market_segment_type)
+unique(training_set$booking_day_of_week)
+unique(training_set$booking_month)
+unique(training_set$arrival_day_of_week)
+unique(training_set$arrival_month)
+
+training_set$type_of_meal_plan <- factor(training_set$type_of_meal_plan)
+training_set$room_type_reserved <- factor(training_set$room_type_reserved)
+training_set$market_segment_type <- factor(training_set$market_segment_type)
+training_set$booking_day_of_week <- factor(training_set$booking_day_of_week)
+training_set$booking_month <- factor(training_set$booking_month)
+training_set$arrival_day_of_week <- factor(training_set$arrival_day_of_week)
+training_set$arrival_month <- factor(training_set$arrival_month)
+
+class(training_set$type_of_meal_plan)
+class(training_set$room_type_reserved)
+class(training_set$market_segment_type)
+class(training_set$booking_day_of_week)
+class(training_set$booking_month)
+class(training_set$arrival_day_of_week)
+class(training_set$arrival_month)
+
+levels(training_set$type_of_meal_plan)
+levels(training_set$room_type_reserved)
+levels(training_set$market_segment_type)
+levels(training_set$booking_day_of_week)
+levels(training_set$booking_month)
+levels(training_set$arrival_day_of_week)
+levels(training_set$arrival_month)
+
+# One-hot encoding the training set
+onehot_encoder <- dummyVars(~ type_of_meal_plan + room_type_reserved + market_segment_type + booking_day_of_week + booking_month + arrival_day_of_week + arrival_month, 
+                            training_set[, c("type_of_meal_plan", "room_type_reserved", "market_segment_type", 
+                                             "booking_day_of_week", "booking_month", "arrival_day_of_week", "arrival_month")], 
+                            levelsOnly = FALSE, 
+                            fullRank = TRUE)
+
+onehot_enc_training <- predict(onehot_encoder, 
+                               training_set[, c("type_of_meal_plan", "room_type_reserved", "market_segment_type",  
+                                                "booking_day_of_week", "booking_month", "arrival_day_of_week", "arrival_month")])
+training_set <- cbind(training_set, onehot_enc_training)
+
+# One-hot encoding the test set
+test_set$booking_day_of_week <- as.character(test_set$booking_day_of_week)
+test_set$booking_month <- as.character(test_set$booking_month)
+test_set$arrival_day_of_week <- as.character(test_set$arrival_day_of_week)
+test_set$arrival_month <- as.character(test_set$arrival_month)
+
+test_set$type_of_meal_plan <- factor(test_set$type_of_meal_plan)
+test_set$room_type_reserved <- factor(test_set$room_type_reserved)
+test_set$market_segment_type <- factor(test_set$market_segment_type)
+test_set$booking_day_of_week <- factor(test_set$booking_day_of_week)
+test_set$booking_month <- factor(test_set$booking_month)
+test_set$arrival_day_of_week <- factor(test_set$arrival_day_of_week)
+test_set$arrival_month <- factor(test_set$arrival_month)
+
+onehot_enc_test <- predict(onehot_encoder, test_set[, c("type_of_meal_plan", "room_type_reserved", "market_segment_type", 
+                                                        "booking_day_of_week", "booking_month", "arrival_day_of_week", "arrival_month")])
+test_set <- cbind(test_set, onehot_enc_test)
+
+# Scaling test and training sets
+test_set[, -c(5, 7, 9, 15, 16, 18, 19, 21)] <- scale(test_set[, -c(5, 7, 9, 15, 16, 18, 19, 21)], 
+                                                     center = apply(training_set[, -c(5, 7, 9, 15, 16, 18, 19, 21)], 2, mean), 
+                                                     scale = apply(training_set[, -c(5, 7, 9, 15, 16, 18, 19, 21)], 2, sd))
+training_set[, -c(5, 7, 9, 15, 16, 18, 19, 21)] <- scale(training_set[, -c(5, 7, 9, 15, 16, 18, 19, 21)])
+
+# Convert data sets to tensors
+training_features <- array(data = unlist(training_set[, -c(5, 7, 9, 15, 16, 18, 19, 21)]), 
+                           dim = c(nrow(training_set), 42))
+training_labels <- array(data = unlist(training_set[, 15]), 
+                         dim = c(nrow(training_set)))
+
+test_features <- array(data = unlist(test_set[, -c(5, 7, 9, 15, 16, 18, 19, 21)]), 
+                       dim = c(nrow(test_set), 42))
+test_labels <- array(data = unlist(test_set[, 15]), 
+                     dim = c(nrow(test_set)))
+
+# Remove unnecessary columns from training and test sets for use in linear models
+training_set <- training_set[ , -c(5, 7, 9, 16, 18, 19, 21)]
+test_set <- test_set[ , -c(5, 7, 9, 16, 18, 19, 21)]
+
+# Building and evaluating models ------------------------------------------
+# Building and evaluating a logistic regression model
+# Model with all predictors
+lm <- glm(booking_status ~ ., data = training_set, family = binomial)
+summary(lm)
+predict_lm <- predict(lm, newdata = test_set)
+binary_predict_lm <- ifelse(predict_lm > 0.5, 1, 0)
+results <- data.frame(
+  Actual = test_set$booking_status, 
+  Predicted = binary_predict_lm
+)
+results$Correct <- results$Actual == results$Predicted
+confusion_matrix_lm <- table(Predicted = results$Predicted, Actual = results$Actual)
+print(confusion_matrix_lm)
+accuracy_lm <- (5714 + 1568) / (5714 + 1395 + 382 + 1568)
+error_lm <- 1 - accuracy_lm
+cat("Accuracy:", accuracy_lm, "\n")
+cat("Error Rate:", error_lm, "\n")
+
+# Model with only significant predictors
+sig_lm <- glm(booking_status ~ no_of_adults + no_of_children + no_of_weekend_nights + no_of_week_nights + required_car_parking_space + lead_time + repeated_guest + no_of_previous_cancellations + avg_price_per_room + no_of_special_requests + arrival_day_of_month + type_of_meal_plan.meal_plan_2 + type_of_meal_plan.not_selected + room_type_reserved.room_type2 + room_type_reserved.room_type4 + room_type_reserved.room_type5 + room_type_reserved.room_type6 + room_type_reserved.room_type7 + market_segment_type.corporate + market_segment_type.offline + booking_day_of_week.Mon + booking_day_of_week.Sat + booking_month.Dec + booking_month.Feb + booking_month.Jan + booking_month.Jul + booking_month.Jun + booking_month.Mar + booking_month.Nov + booking_month.Oct + booking_month.Sep + arrival_day_of_week.Mon + arrival_day_of_week.Sat + arrival_month.Aug + arrival_month.Dec + arrival_month.Feb + arrival_month.Jan + arrival_month.Jul + arrival_month.Jun + arrival_month.Mar + arrival_month.May + arrival_month.Nov + arrival_month.Oct + arrival_month.Sep,
+              data = training_set, family = binomial)
+summary(sig_lm)
+predict_sig_lm <- predict(sig_lm, newdata = test_set)
+binary_predict_sig_lm <- ifelse(predict_sig_lm > 0.5, 1, 0)
+results_sig <- data.frame(
+  Actual = test_set$booking_status, 
+  Predicted = binary_predict_sig_lm
+)
+results_sig$Correct <- results_sig$Actual == results_sig$Predicted
+confusion_matrix_sig_lm <- table(Predicted = results_sig$Predicted, Actual = results_sig$Actual)
+print(confusion_matrix_sig_lm)
+accuracy_sig_lm <- (5712 + 1568) / (5712 + 1395 + 384 + 1568)
+error_sig_lm <- 1 - accuracy_sig_lm
+cat("Accuracy:", accuracy_sig_lm, "\n")
+cat("Error Rate:", error_sig_lm, "\n")
+
+# Building and evaluating a K-Nearest Neighbors (KNN) model
+# Model with all predictors and K = 3
+predictors <- training_set[, -which(names(training_set) == "booking_status")]
+label <- training_set$booking_status
+k <- 3
+knn_model <- knn(train = predictors, test = predictors, cl = label, k = k)
+knn_predictions <- knn(
+  train = training_set[, -length(predictors)],
+  test = test_set[, -length(predictors)],
+  cl = training_set$booking_status,
+  k = k
+)
+knn_results <- data.frame(
+  Actual = test_set$booking_status,
+  Predicted = knn_predictions
+)
+knn_results$Correct <- knn_results$Actual == knn_results$Predicted
+knn_confusion_matrix <- table(Predicted = knn_results$Predicted, Actual = knn_results$Actual)
+print(knn_confusion_matrix)
+accuracy_knn <- (5519 + 2114) / (5519 + 849 + 577 + 2114)
+error_knn <- 1 - accuracy_knn
+cat("Accuracy:", accuracy_knn, "\n")
+cat("Error Rate:", error_knn, "\n")
+
+# Model with all predictors and K = 5
+k <- 5
+knn_model <- knn(train = predictors, test = predictors, cl = label, k = k)
+knn_predictions <- knn(
+  train = training_set[, -length(predictors)],
+  test = test_set[, -length(predictors)],
+  cl = training_set$booking_status,
+  k = k
+)
+knn_results <- data.frame(
+  Actual = test_set$booking_status,
+  Predicted = knn_predictions
+)
+knn_results$Correct <- knn_results$Actual == knn_results$Predicted
+knn_confusion_matrix <- table(Predicted = knn_results$Predicted, Actual = knn_results$Actual)
+print(knn_confusion_matrix)
+accuracy_knn <- (5541 + 2087) / (5541 + 876 + 555 + 2087)
+error_knn <- 1 - accuracy_knn
+cat("Accuracy:", accuracy_knn, "\n")
+cat("Error Rate:", error_knn, "\n")
+
+# Model with all predictors and K = 10
+k <- 10
+knn_model <- knn(train = predictors, test = predictors, cl = label, k = k)
+knn_predictions <- knn(
+  train = training_set[, -length(predictors)],
+  test = test_set[, -length(predictors)],
+  cl = training_set$booking_status,
+  k = k
+)
+knn_results <- data.frame(
+  Actual = test_set$booking_status,
+  Predicted = knn_predictions
+)
+knn_results$Correct <- knn_results$Actual == knn_results$Predicted
+knn_confusion_matrix <- table(Predicted = knn_results$Predicted, Actual = knn_results$Actual)
+print(knn_confusion_matrix)
+accuracy_knn <- (5629 + 2001) / (5629 + 962 + 467 + 2001)
+error_knn <- 1 - accuracy_knn
+cat("Accuracy:", accuracy_knn, "\n")
+cat("Error Rate:", error_knn, "\n")
+
+# Building and evaluating a classification tree model
+set.seed(123)
+rf <- randomForest(booking_status ~ ., data = training_set, mtry = 4, importance = TRUE, ntree = 25, type = "classification")
+rf
+importance(rf)
+rf_predictions <- predict(rf, test_set, type = "class")
+rf_results <- data.frame(
+  Actual = test_set$booking_status,
+  Predicted = rf_predictions
+)
+rf_predictions <- factor(ifelse(rf_predictions >= 0.5, 1, 0))
+test_set$booking_status <- factor(test_set$booking_status)
+levels(rf_predictions) <- levels(test_set$booking_status)
+confusion_mat <- confusionMatrix(rf_predictions, test_set$booking_status)
+print(confusion_mat)
+accuracy_tree_rf <- (5893 + 2112) / (5893 + 804 + 250 + 2112)
+error_tree_rf <- 1 - accuracy_tree_rf
+cat("Accuracy:", accuracy_tree_rf, "\n")
+cat("Error Rate:", error_tree_rf, "\n")
+
+# Building and evaluating a neural network model
+model <- keras_model_sequential(list(
+  layer_dense(units = 40, activation = "relu"), 
+  layer_dense(units = 20, activation = "relu"),
+  layer_dense(units = 1, activation = "sigmoid")
+))
+compile(model, 
+        optimizer = "rmsprop", 
+        loss = "binary_crossentropy", 
+        metrics = "accuracy")
+
+# Training the model
+history <- fit(model, training_features, training_labels, 
+               epochs = 10, batch_size = 512, validation_split = 0.33)
+plot(history)
+
+# Using the model to make predictions
+predictions <- predict(model, test_features)
+test_set$p_prob <- predictions[, 1]
+head(predictions, 10)
+predicted_class <- (predictions[, 1] >= 0.5) * 1
+head(predicted_class, 10)
+
+# Calculating accuracy
+accuracy <- mean(predicted_class == test_labels)
+accuracy
+
+# Making predictions and calculating fpr and tpr rates at 0.5 threshold
+over_threshold <- test_set[test_set$p_prob >= 0.5, ]
+fpr <- sum(over_threshold$booking_status==0)/sum(test_set$booking_status==0)
+fpr
+tpr <- sum(over_threshold$booking_status==1)/sum(test_set$booking_status==1)
+tpr
+
+# Plotting ROC curve
+roc_data <- data.frame(threshold = seq(1, 0, -0.01), fpr = 0, tpr = 0)
+for (i in roc_data$threshold) {
+  over_threshold <- test_set[test_set$p_prob >= i, ]
+  fpr <- sum(over_threshold$booking_status==0)/sum(test_set$booking_status==0)
+  roc_data[roc_data$threshold==i, "fpr"] <- fpr
+  tpr <- sum(over_threshold$booking_status==1)/sum(test_set$booking_status==1)
+  roc_data[roc_data$threshold==i, "tpr"] <- tpr
+}
+ggplot() + 
+  geom_line(data = roc_data, 
+            aes(x = fpr, y = tpr, color = threshold), linewidth = 2) + 
+  scale_color_gradientn(colors = rainbow(3)) + 
+  geom_abline(intercept = 0, slope = 1, lty = 2) + 
+  geom_point(data = roc_data[seq(1, 101, 10), ], aes(x = fpr, y = tpr)) + 
+  geom_text(data = roc_data[seq(1, 101, 10), ], 
+            aes(x = fpr, y = tpr, label = threshold, hjust = 1.2, vjust = -0.2))
+
+# Calculating the AUC
+auc <- auc(x = roc_data$fpr, y = roc_data$tpr, type = "spline")
+auc
+
+# Creating a calibration curve
+in_interval <- test_set[test_set$p_prob >= 0.7 & test_set$p_prob <= 0.8, ]
+nrow(in_interval[in_interval$booking_status==1, ])/nrow(in_interval)
+calibration_data <- data.frame(bin_midpoint=seq(0.05,0.95,0.1),
+                               observed_event_percentage=0)
+for (i in seq(0.05,0.95,0.1)) {
+  in_interval <- test_set[test_set$p_prob >= (i-0.05) & test_set$p_prob <= (i+0.05), ]
+  oep <- nrow(in_interval[in_interval$booking_status==1, ])/nrow(in_interval)
+  calibration_data[calibration_data$bin_midpoint==i, "observed_event_percentage"] <- oep
+}
+ggplot(data = calibration_data, aes(x = bin_midpoint, y = observed_event_percentage)) +
+  geom_line(linewidth = 1) +
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  geom_point(size = 2) +
+  geom_text(aes(label = bin_midpoint), hjust = 0.75, vjust = -0.5)
+
+# Building another neural network model
+model <- keras_model_sequential() %>%
+  layer_dense(units = 80, activation = "tanh") %>%
+  layer_dropout(rate = 0.3) %>% 
+  layer_dense(units = 40, activation = "tanh") %>%
+  layer_dropout(rate = 0.2) %>% 
+  layer_dense(units = 20, activation = "tanh") %>%
+  layer_dropout(rate = 0.2) %>% 
+  layer_dense(units = 1, activation = "sigmoid")
+
+# Compile the model
+compile(model, 
+        optimizer = "rmsprop", 
+        loss = "binary_crossentropy", 
+        metrics = "accuracy")
+
+# Define early stopping callback
+early_stop <- callback_early_stopping(
+  monitor = "val_loss",
+  patience = 3
+)
+
+# Training the model with early stopping
+history <- fit(
+  model,
+  training_features,
+  training_labels,
+  epochs = 100,
+  batch_size = 512,
+  validation_split = 0.33,
+  callbacks = list(early_stop)
+)
+
+# Plot training history
+plot(history)
+
+# Using the model to make predictions
+predictions <- predict(model, test_features)
+test_set$p_prob <- predictions[, 1]
+head(predictions, 10)
+predicted_class <- (predictions[, 1] >= 0.5) * 1
+head(predicted_class, 10)
+
+# Calculating accuracy
+accuracy <- mean(predicted_class == test_labels)
+accuracy
+
+# Making predictions and calculating fpr and tpr rates at 0.5 threshold
+over_threshold <- test_set[test_set$p_prob >= 0.5, ]
+fpr <- sum(over_threshold$booking_status==0)/sum(test_set$booking_status==0)
+fpr
+tpr <- sum(over_threshold$booking_status==1)/sum(test_set$booking_status==1)
+tpr
+
+# Plotting ROC curve
+roc_data <- data.frame(threshold = seq(1, 0, -0.01), fpr = 0, tpr = 0)
+for (i in roc_data$threshold) {
+  over_threshold <- test_set[test_set$p_prob >= i, ]
+  fpr <- sum(over_threshold$booking_status==0)/sum(test_set$booking_status==0)
+  roc_data[roc_data$threshold==i, "fpr"] <- fpr
+  tpr <- sum(over_threshold$booking_status==1)/sum(test_set$booking_status==1)
+  roc_data[roc_data$threshold==i, "tpr"] <- tpr
+}
+ggplot() + 
+  geom_line(data = roc_data, 
+            aes(x = fpr, y = tpr, color = threshold), linewidth = 2) + 
+  scale_color_gradientn(colors = rainbow(3)) + 
+  geom_abline(intercept = 0, slope = 1, lty = 2) + 
+  geom_point(data = roc_data[seq(1, 101, 10), ], aes(x = fpr, y = tpr)) + 
+  geom_text(data = roc_data[seq(1, 101, 10), ], 
+            aes(x = fpr, y = tpr, label = threshold, hjust = 1.2, vjust = -0.2))
+
+# Calculating the AUC
+auc <- auc(x = roc_data$fpr, y = roc_data$tpr, type = "spline")
+auc
+
+# Creating a calibration curve
+in_interval <- test_set[test_set$p_prob >= 0.7 & test_set$p_prob <= 0.8, ]
+nrow(in_interval[in_interval$booking_status==1, ])/nrow(in_interval)
+calibration_data <- data.frame(bin_midpoint=seq(0.05,0.95,0.1),
+                               observed_event_percentage=0)
+for (i in seq(0.05,0.95,0.1)) {
+  in_interval <- test_set[test_set$p_prob >= (i-0.05) & test_set$p_prob <= (i+0.05), ]
+  oep <- nrow(in_interval[in_interval$booking_status==1, ])/nrow(in_interval)
+  calibration_data[calibration_data$bin_midpoint==i, "observed_event_percentage"] <- oep
+}
+ggplot(data = calibration_data, aes(x = bin_midpoint, y = observed_event_percentage)) +
+  geom_line(linewidth = 1) +
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  geom_point(size = 2) +
+  geom_text(aes(label = bin_midpoint), hjust = 0.75, vjust = -0.5)
+
+# Building another neural network model with PCA
+# Running PCA
+pca_results <- prcomp(training_features)
+summary(pca_results)
+screeplot(pca_results, type = "line")
+
+# Reducing to 4 PCs
+n_components <- 4
+reduced_training_features <- pca_results$x[, 1:n_components]
+reduced_test_features <- predict(pca_results, newdata = test_features)[, 1:n_components]
+
+pca_model <- keras_model_sequential(list(
+  layer_dense(units = 10, activation = "relu"), 
+  layer_dense(units = 5, activation = "relu"), 
+  layer_dense(units = 5, activation = "tanh"), 
+  layer_dense(units = 1, activation = "sigmoid")
+))
+compile(pca_model, 
+        optimizer = "rmsprop", 
+        loss = "binary_crossentropy", 
+        metrics = "accuracy")
+
+# Training the model
+history <- fit(pca_model, reduced_training_features, training_labels, 
+               epochs = 20, batch_size = 512, validation_split = 0.33)
+plot(history)
+
+# Using the model to make predictions
+pca_predictions <- predict(pca_model, reduced_test_features)
+test_set$p_prob <- pca_predictions[, 1]
+head(pca_predictions, 10)
+pca_predicted_class <- (pca_predictions[, 1] >= 0.5) * 1
+head(pca_predicted_class, 10)
+
+# Calculating accuracy
+pca_accuracy <- mean(pca_predicted_class == test_labels)
+pca_accuracy
+
+# Tuning the model
+parameterGrid <- expand.grid(
+  units = c(5, 10, 15, 20),
+  activation = c("relu", "tanh", "sigmoid")
+)
+
+# Define a function to create a neural network model
+create_model <- function(units, activation, learning_rate) {
+  model <- keras_model_sequential() %>%
+    layer_dense(units = units, activation = activation, input_shape = ncol(reduced_training_features)) %>%
+    layer_dense(units = units, activation = activation) %>%
+    layer_dense(units = units, activation = activation) %>%
+    layer_dense(units = 1, activation = "sigmoid")
+  
+  compile(model, optimizer = "rmsprop", loss = "binary_crossentropy", metrics = "accuracy")
+  
+  return(model)
+}
+
+# Perform grid search
+results <- list()
+for (i in 1:nrow(parameterGrid)) {
+  model <- create_model(parameterGrid$units[i], parameterGrid$activation[i], parameterGrid$learning_rate[i])
+  
+  history <- fit(model, 
+                 x = reduced_training_features, 
+                 y = training_labels, 
+                 epochs = 10, 
+                 batch_size = 512, 
+                 validation_split = 0.33)
+  
+  results[[i]] <- list(model = model, history = history)
+}
+
+# Evaluate results and choose the best model
+best_accuracy <- 0
+best_model <- NULL
+for (i in 1:length(results)) {
+  accuracy <- max(results[[i]]$history$metrics$val_accuracy)
+  if (accuracy > best_accuracy) {
+    best_accuracy <- accuracy
+    best_model <- results[[i]]$model
+  }
+}
+summary(best_model)
+str(best_model)
+activation_functions <- lapply(best_model$layers, `[[`, "activation")
+print(activation_functions)
+
+# Use the best model for predictions
+predictions <- predict(best_model, reduced_test_features)
+test_set$p_prob <- predictions[, 1]
+pca_predicted_class <- ifelse(predictions[, 1] >= 0.5, 1, 0)
+pca_accuracy <- mean(pca_predicted_class == test_labels)
+pca_accuracy
+
+# Making predictions and calculating fpr and tpr rates at 0.5 threshold
+over_threshold <- test_set[test_set$p_prob >= 0.5, ]
+fpr <- sum(over_threshold$booking_status==0)/sum(test_set$booking_status==0)
+fpr
+tpr <- sum(over_threshold$booking_status==1)/sum(test_set$booking_status==1)
+tpr
+
+# Plotting ROC curve
+roc_data <- data.frame(threshold = seq(1, 0, -0.01), fpr = 0, tpr = 0)
+for (i in roc_data$threshold) {
+  over_threshold <- test_set[test_set$p_prob >= i, ]
+  fpr <- sum(over_threshold$booking_status==0)/sum(test_set$booking_status==0)
+  roc_data[roc_data$threshold==i, "fpr"] <- fpr
+  tpr <- sum(over_threshold$booking_status==1)/sum(test_set$booking_status==1)
+  roc_data[roc_data$threshold==i, "tpr"] <- tpr
+}
+ggplot() + 
+  geom_line(data = roc_data, 
+            aes(x = fpr, y = tpr, color = threshold), linewidth = 2) + 
+  scale_color_gradientn(colors = rainbow(3)) + 
+  geom_abline(intercept = 0, slope = 1, lty = 2) + 
+  geom_point(data = roc_data[seq(1, 101, 10), ], aes(x = fpr, y = tpr)) + 
+  geom_text(data = roc_data[seq(1, 101, 10), ], 
+            aes(x = fpr, y = tpr, label = threshold, hjust = 1.2, vjust = -0.2))
+
+# Calculating the AUC
+pca_auc <- auc(x = roc_data$fpr, y = roc_data$tpr, type = "spline")
+pca_auc
+
+# Creating a calibration curve
+in_interval <- test_set[test_set$p_prob >= 0.7 & test_set$p_prob <= 0.8, ]
+nrow(in_interval[in_interval$booking_status==1, ])/nrow(in_interval)
+calibration_data <- data.frame(bin_midpoint=seq(0.05,0.95,0.1),
+                               observed_event_percentage=0)
+for (i in seq(0.05,0.95,0.1)) {
+  in_interval <- test_set[test_set$p_prob >= (i-0.05) & test_set$p_prob <= (i+0.05), ]
+  oep <- nrow(in_interval[in_interval$booking_status==1, ])/nrow(in_interval)
+  calibration_data[calibration_data$bin_midpoint==i, "observed_event_percentage"] <- oep
+}
+ggplot(data = calibration_data, aes(x = bin_midpoint, y = observed_event_percentage)) +
+  geom_line(linewidth = 1) +
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  geom_point(size = 2) +
+  geom_text(aes(label = bin_midpoint), hjust = 0.75, vjust = -0.5)
+
+# Table with models and relative accuracies
+classification_overview <- data.frame(
+  Method = c("Logistic Regression", "kNN (k = 3)", "Random Forest", "Neural Network", "Neural Network with PCA"),
+  Accuracy = c("80.38%", "84.26%", "88.37%", "82.91%", "72.79%")
+)
+classification_table <- kable(classification_overview, "markdown") %>%
+  kable_styling(full_width = FALSE) %>%
+  column_spec(1, bold = TRUE)
+classification_table
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

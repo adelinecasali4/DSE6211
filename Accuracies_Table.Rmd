@@ -1,0 +1,21 @@
+---
+title: "Accuracy Table"
+author: "Adeline Casali"
+date: "2024-03-07"
+output: word_document
+---
+
+```{r}
+library(dplyr)
+library(kableExtra)
+# Table with models and relative accuracies
+classification_overview <- data.frame(
+  Method = c("Logistic Regression", "kNN (k = 3)", "Random Forest", "Simple Neural Network", "Complex Neural Network", "Neural Network with PCA"),
+  Accuracy = c("80.38%", "84.23%", "88.37%", "80.02%", "84.10%", "72.11%")
+)
+classification_table <- kable(classification_overview, "markdown") %>%
+  kable_styling(full_width = FALSE) %>%
+  column_spec(1, bold = TRUE)
+classification_table
+```
+
